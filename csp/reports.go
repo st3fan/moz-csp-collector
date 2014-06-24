@@ -2,7 +2,7 @@ package csp
 
 import (
 	"database/sql"
-	//"log"
+	"log"
 	"net/url"
 	"time"
 )
@@ -57,15 +57,15 @@ type Document struct {
 	Uri     string
 }
 
-var documentCache map[string]Document = make(map[string]Document)
+//var documentCache map[string]Document = make(map[string]Document)
 
 func InsertOrGetDocument(tx *sql.Tx, uri string) (*Document, error) {
 	var document Document
 
-	document, ok := documentCache[uri]
-	if ok {
-		return &document, nil
-	}
+	// document, ok := documentCache[uri]
+	// if ok {
+	// 	return &document, nil
+	// }
 
 	err := tx.QueryRow("select Id,Created,Uri from Documents where Uri=$1", uri).Scan(&document.Id, &document.Created, &document.Uri)
 	if err != nil {
@@ -78,7 +78,7 @@ func InsertOrGetDocument(tx *sql.Tx, uri string) (*Document, error) {
 			return nil, err
 		}
 	}
-	documentCache[uri] = document
+	// documentCache[uri] = document
 	return &document, nil
 }
 
@@ -110,15 +110,15 @@ type Blocker struct {
 	Uri     string
 }
 
-var blockerCache map[string]Blocker = make(map[string]Blocker)
+// var blockerCache map[string]Blocker = make(map[string]Blocker)
 
 func InsertOrGetBlocker(tx *sql.Tx, uri string) (*Blocker, error) {
 	var blocker Blocker
 
-	blocker, ok := blockerCache[uri]
-	if ok {
-		return &blocker, nil
-	}
+	// blocker, ok := blockerCache[uri]
+	// if ok {
+	// 	return &blocker, nil
+	// }
 
 	err := tx.QueryRow("select Id,Created,Uri from Blockers where Uri=$1", uri).Scan(&blocker.Id, &blocker.Created, &blocker.Uri)
 	if err != nil {
@@ -131,7 +131,7 @@ func InsertOrGetBlocker(tx *sql.Tx, uri string) (*Blocker, error) {
 			return nil, err
 		}
 	}
-	blockerCache[uri] = blocker
+	// blockerCache[uri] = blocker
 	return &blocker, nil
 }
 
@@ -141,15 +141,15 @@ type Policy struct {
 	Policy  string
 }
 
-var policyCache map[string]Policy = make(map[string]Policy)
+// var policyCache map[string]Policy = make(map[string]Policy)
 
 func InsertOrGetPolicy(tx *sql.Tx, p string) (*Policy, error) {
 	var policy Policy
 
-	policy, ok := policyCache[p]
-	if ok {
-		return &policy, nil
-	}
+	// policy, ok := policyCache[p]
+	// if ok {
+	// 	return &policy, nil
+	// }
 
 	err := tx.QueryRow("select Id,Created,Policy from Policies where Policy=$1", p).Scan(&policy.Id, &policy.Created, &policy.Policy)
 	if err != nil {
@@ -162,13 +162,57 @@ func InsertOrGetPolicy(tx *sql.Tx, p string) (*Policy, error) {
 			return nil, err
 		}
 	}
-	policyCache[p] = policy
+	// policyCache[p] = policy
 	return &policy, nil
+}
+
+type UserAgent struct {
+	Id        uint64
+	Created   time.Time
+	UserAgent string
+}
+
+func InsertOrGetUserAgent(tx *sql.Tx, ua string) (*UserAgent, error) {
+	var userAgent UserAgent
+	err := tx.QueryRow("select Id,Created,UserAgent from UserAgents where UserAgent=$1", ua).Scan(&userAgent.Id, &userAgent.Created, &userAgent.UserAgent)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err := tx.QueryRow("insert into UserAgents (UserAgent) values ($1) returning Id,Created,UserAgent", ua).Scan(&userAgent.Id, &userAgent.Created, &userAgent.UserAgent)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return &userAgent, nil
+}
+
+type Directive struct {
+	Id        uint64
+	Created   time.Time
+	Directive string
+}
+
+func InsertOrGetDirective(tx *sql.Tx, d string) (*Directive, error) {
+	var directive Directive
+	err := tx.QueryRow("select Id,Created,Directive from Directives where Directive=$1", d).Scan(&directive.Id, &directive.Created, &directive.Directive)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err := tx.QueryRow("insert into Directives (Directive) values ($1) returning Id,Created,Directive", d).Scan(&directive.Id, &directive.Created, &directive.Directive)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	return &directive, nil
 }
 
 //
 
-func (rr *ReportRequest) insert(db *sql.DB) error {
+func (rr *ReportRequest) insert(db *sql.DB, ua string) error {
 	url, error := url.Parse(rr.Report.DocumentURI)
 	if error != nil {
 		return error
@@ -217,6 +261,17 @@ func (rr *ReportRequest) insert(db *sql.DB) error {
 		}
 		//log.Printf("We got a policy %+v", policy)
 
+		userAgent, err := InsertOrGetUserAgent(tx, ua)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Inserting directive: %s", rr.Report.ViolatedDirective)
+		directive, err := InsertOrGetDirective(tx, rr.Report.ViolatedDirective)
+		if err != nil {
+			return err
+		}
+
 		// Insert the Report
 
 		var referrerId *uint64
@@ -228,7 +283,7 @@ func (rr *ReportRequest) insert(db *sql.DB) error {
 		if blocker != nil {
 			blockerId = &blocker.Id
 		}
-		_, err = tx.Exec("insert into Reports (SiteId, ClientIp, DocumentId, ReferrerId, BlockerId, ViolatedDirective, OriginalPolicyId) values ($1, $2, $3, $4, $5, $6, $7)", site.Id, "0.0.0.0", document.Id, referrerId, blockerId, rr.Report.ViolatedDirective, policy.Id)
+		_, err = tx.Exec("insert into Reports (SiteId, ClientIp, DocumentId, ReferrerId, BlockerId, ViolatedDirectiveId, OriginalPolicyId, ClientUserAgent) values ($1, $2, $3, $4, $5, $6, $7, $8)", site.Id, "0.0.0.0", document.Id, referrerId, blockerId, directive.Id, policy.Id, userAgent.Id)
 		if err != nil {
 			return err
 		}

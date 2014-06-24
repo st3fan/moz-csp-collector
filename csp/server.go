@@ -6,6 +6,7 @@ import (
 	"github.com/martini-contrib/binding"
 	"github.com/martini-contrib/render"
 	"log"
+	"net/http"
 )
 
 type Server *martini.ClassicMartini
@@ -25,10 +26,10 @@ func NewServer(session *DatabaseSession) Server {
 		})
 	})
 
-	m.Post("/api/v1/report", binding.Json(ReportRequest{}), func(rr ReportRequest, r render.Render, db *sql.DB) {
+	m.Post("/api/v1/report", binding.Json(ReportRequest{}), func(rr ReportRequest, r render.Render, db *sql.DB, req *http.Request) {
 		if rr.valid() {
 			//log.Printf("Received report %+v", rr)
-			err := rr.insert(db)
+			err := rr.insert(db, req.Header.Get("User-Agent"))
 			if err != nil {
 				log.Printf("ERROR %s", err)
 			}

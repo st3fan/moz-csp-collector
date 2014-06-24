@@ -36,6 +36,12 @@ create table Policies (
   Policy varchar not null
 );
 
+create table Directives (
+  Id serial not null unique primary key,
+  Created timestamp without time zone default (now() at time zone 'utc'),
+  Directive varchar unique not null
+);
+
 create table Reports (
   Id serial not null unique primary key,
   Created timestamp without time zone default (now() at time zone 'utc'),
@@ -48,7 +54,7 @@ create table Reports (
   DocumentId integer not null references Documents (Id),
   ReferrerId integer references Referrers (Id),
   BlockerId integer references Blockers (Id),
-  ViolatedDirective varchar not null,
+  ViolatedDirectiveId integer not null references Directives (Id),
   OriginalPolicyId integer references Policies (Id),
   -- Firefox specific
   ScriptSource varchar,

@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	session, err := csp.NewSession("postgres://csp:csp@localhost/csp")
+	session, err := csp.NewSession("host=/var/run/postgresql sslmode=disable dbname=csp user=csp password=csp") // "postgres://csp:csp@localhost/csp"
 	if err != nil {
 		log.Fatalf("Can't open database session: %s", err)
 	}
