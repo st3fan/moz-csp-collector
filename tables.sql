@@ -1,83 +1,62 @@
--- Sites that are allowed to report. Contains just the hostname.
+-- create-tables.sql
 
-create table Sites (
+create table Site (
   Id serial not null unique primary key,
   Created timestamp without time zone default (now() at time zone 'utc'),
   Hostname varchar unique not null
 );
 
-create table Documents (
+create table UserAgent (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  Uri varchar unique not null
+  Value varchar unique not null
 );
 
-create table Referrers (
+create table DocumentUri (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  Uri varchar unique not null
+  Value varchar unique not null
 );
 
-create table Blockers (
+create table Referrer (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  Uri varchar unique not null
+  Value varchar unique not null
 );
 
-create table UserAgents (
+create table BlockedUri (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  UserAgent varchar not null
+  Value varchar unique not null
 );
 
-create table Policies (
+create table ViolatedDirective (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  Policy varchar not null
+  Value varchar unique not null
 );
 
-create table Directives (
+create table OriginalPolicy (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  Directive varchar unique not null
+  Value varchar unique not null
 );
 
-create table Reports (
+create table ScriptSource (
   Id serial not null unique primary key,
-  Created timestamp without time zone default (now() at time zone 'utc'),
-  -- Site this happened on
-  SiteId integer references Sites (Id),
-  -- Client info
-  ClientIp varchar not null,
-  ClientUserAgent integer references UserAgents (Id),
-  -- This is the report
-  DocumentId integer not null references Documents (Id),
-  ReferrerId integer references Referrers (Id),
-  BlockerId integer references Blockers (Id),
-  ViolatedDirectiveId integer not null references Directives (Id),
-  OriginalPolicyId integer references Policies (Id),
-  -- Firefox specific
-  ScriptSource varchar,
-  ScriptSample varchar
+  Value varchar unique not null
 );
 
+create table ScriptSample (
+  Id serial not null unique primary key,
+  Value varchar unique not null
+);
 
-CREATE OR REPLACE FUNCTION InsertDocument(DocumentUri VARCHAR) RETURNS INTEGER AS $$
-BEGIN
-  RETURN QUERY
-  INSERT INTO Documents (Uri)
-    SELECT DocumentUri
-      WHERE NOT EXISTS (SELECT Id FROM Documents WHERE Uri = DocumentUri)
-  RETURNING Id;
-END; $$
-LANGUAGE PLPGSQL;
-
-
-CREATE OR REPLACE FUNCTION inc(val integer) RETURNS integer AS $$
-BEGIN
-RETURN val + 1;
-END; $$
-LANGUAGE PLPGSQL;
-
-
-INSERT INTO Documents (Uri) SELECT DocumentUri WHERE NOT EXISTS (SELECT Id FROM Documents WHERE Uri = DocumentUri) RETURNING Id;
+create table Report (
+  Id serial not null unique primary key,
+  Created timestamp without time zone default (now() at time zone 'utc'),
+  SiteId integer references Site (Id),
+  UserAgentId integer references UserAgent (Id),
+  RemoteIp varchar not null,
+  DocumentUriId integer not null references DocumentUri (Id),
+  ReferrerId integer references Referrer (Id),
+  BlockedUriId integer references BlockedUri (Id),
+  ViolatedDirectiveId integer not null references ViolatedDirective (Id),
+  OriginalPolicyId integer references OriginalPolicy (Id),
+  ScriptSourceId integer references ScriptSource (Id),
+  ScriptSampleId integer references ScriptSample (Id)
+);

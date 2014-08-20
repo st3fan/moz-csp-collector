@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/st3fan/moz-csp/csp"
+	"github.com/st3fan/moz-csp-collector/csp"
 	"log"
 )
 
