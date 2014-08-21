@@ -1,12 +1,18 @@
 package main
 
 import (
+	"flag"
 	"github.com/st3fan/moz-csp-collector/csp"
 	"log"
 )
 
+// moz-csp-collector -db <dburl>
+
+var database = flag.String("database", "postgres://csp:csp@localhost/csp", "the database to connect to")
+
 func main() {
-	session, err := csp.NewSession("host=/var/run/postgresql sslmode=disable dbname=csp user=csp password=csp") // "postgres://csp:csp@localhost/csp"
+	flag.Parse()
+	session, err := csp.NewSession(*database)
 	if err != nil {
 		log.Fatalf("Can't open database session: %s", err)
 	}
